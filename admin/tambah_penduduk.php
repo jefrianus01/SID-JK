@@ -6,6 +6,10 @@ if (!isset($_SESSION['username'])) {
 }
 
 include '../backend/koneksi.php'; 
+
+// Menangkap pesan error/sukses dari proses
+$pesan_error = isset($_GET['error']) ? $_GET['error'] : "";
+$pesan_sukses = isset($_GET['sukses']) ? $_GET['sukses'] : "";
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -15,6 +19,29 @@ include '../backend/koneksi.php';
     <title>Tambah Penduduk - Admin Desa As Manulea</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="dashboard.css">
+    <style>
+        /* Gaya Kotak Notifikasi Profesional di Tengah Halaman */
+        .alert-box {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 0.15rem 1rem rgba(33, 40, 50, 0.08);
+        }
+        .alert-danger {
+            background-color: #f8d7da;
+            color: #842029;
+            border: 1px solid #f5c2c7;
+        }
+        .alert-success {
+            background-color: #d1e7dd;
+            color: #0f5132;
+            border: 1px solid #badbcc;
+        }
+    </style>
 </head>
 <body>
     <div class="layout-container">
@@ -51,10 +78,24 @@ include '../backend/koneksi.php';
                     <h2><i class="fas fa-user-plus"></i> Tambah Data Penduduk Baru</h2>
                 </div>
 
+                <!-- NOTIFIKASI PROFESIONAL (Ganti Alert Browser) -->
+                <?php if (!empty($pesan_error)): ?>
+                    <div class="alert-box alert-danger">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 18px;"></i>
+                        <div><strong>Gagal!</strong> <?php echo htmlspecialchars($pesan_error); ?></div>
+                    </div>
+                <?php endif; ?>
+
+                <?php if (!empty($pesan_sukses)): ?>
+                    <div class="alert-box alert-success">
+                        <i class="fas fa-check-circle" style="font-size: 18px;"></i>
+                        <div><strong>Berhasil!</strong> <?php echo htmlspecialchars($pesan_sukses); ?></div>
+                    </div>
+                <?php endif; ?>
+
                 <div class="card-table" style="padding: 30px;">
                     <form action="proses_tambah_penduduk.php" method="POST">
                         
-                        <!-- Relasi ke Kepala Desa (Bisa diubah jadi dinamis nanti jika perlu) -->
                         <input type="hidden" name="id_kepala_desa" value="1">
 
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
@@ -136,7 +177,7 @@ include '../backend/koneksi.php';
                                 </div>
                             </div>
 
-                        </div> <!-- Akhir Grid -->
+                        </div>
 
                         <div style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
                             <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Simpan Data Penduduk</button>

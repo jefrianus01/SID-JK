@@ -1,46 +1,51 @@
 <?php
 session_start();
-
-// Pengecekan sesi login
 if (!isset($_SESSION['username'])) {
     header("location: ../index.php");
     exit;
 }
+include '../backend/koneksi.php'; 
 
-// Menghubungkan ke database
-$koneksi_path = __DIR__ . '/../koneksi.php';
-if (file_exists($koneksi_path)) {
-    include $koneksi_path;
-} else {
-    include 'backend/koneksi.php'; 
+if (empty($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+    $err = urlencode("Validasi keamanan gagal (Token CSRF tidak valid).");
+    header("location: tambah_kk.php?error=$err");
+    exit;
 }
 
-// Menangkap data yang dikirim dari form (dilengkapi dengan pengamanan dasar string)
-$id_kepala_desa = mysqli_real_escape_string($koneksi, $_POST['id_kepala_desa']);
-$no_kk          = mysqli_real_escape_string($koneksi, $_POST['no_kk']);
-$nama           = mysqli_real_escape_string($koneksi, $_POST['nama']);
-$desa           = mysqli_real_escape_string($koneksi, $_POST['desa']);
-$kecamatan      = mysqli_real_escape_string($koneksi, $_POST['kecamatan']);
-$kabupaten      = mysqli_real_escape_string($koneksi, $_POST['kabupaten']);
-$provinsi       = mysqli_real_escape_string($koneksi, $_POST['provinsi']);
-$bantuan        = mysqli_real_escape_string($koneksi, $_POST['bantuan']);
+$id_kepala_desa = (int)$_POST['id_kepala_desa'];
+$no_kk          = trim($_POST['no_kk']);
+$nama           = trim($_POST['nama']); // Nama Kepala Keluarga
+$desa           = trim($_POST['desa']);
+$kecamatan      = trim($_POST['kecamatan']);
+$kabupaten      = trim($_POST['kabupaten']);
+$provinsi       = trim($_POST['provinsi']);
+$bantuan        = trim($_POST['bantuan']);
 
-// Query untuk memasukkan data ke tabel_kk sesuai kamus data
-$query = "INSERT INTO tabel_kk (id_kepala_desa, no_kk, nama, desa, kecamatan, kabupaten, provinsi, bantuan) 
-          VALUES ('$id_kepala_desa', '$no_kk', '$nama', '$desa', '$kecamatan', '$kabupaten', '$provinsi', '$bantuan')";
+// Jumlah anggota otomatis 0 saat KK pertama kali dibuat (Sistem Pintar)
+$jumlah_anggota = 0; 
 
-// Eksekusi query
-if (mysqli_query($koneksi, $query)) {
-    // Jika berhasil, arahkan kembali ke halaman data_kk.php
-    echo "<script>
-            alert('Data Keluarga berhasil ditambahkan!');
-            window.location.href = 'data_kk.php';
-          </script>";
+$stmt_cek = mysqli_prepare($koneksi, "SELECT id_kk FROM tabel_kk WHERE no_kk = ?");
+mysqli_stmt_bind_param($stmt_cek, "s", $no_kk);
+mysqli_stmt_execute($stmt_cek);
+$result_cek = mysqli_stmt_get_result($stmt_cek);
+
+if (mysqli_num_rows($result_cek) > 0) {
+    $err = urlencode("Nomor KK " . $no_kk . " sudah terdaftar di sistem!");
+    header("location: tambah_kk.php?error=$err");
+    exit;
+}
+
+$stmt = mysqli_prepare($koneksi, "INSERT INTO tabel_kk (id_kepala_desa, no_kk, nama, jumlah_anggota, desa, kecamatan, kabupaten, provinsi, bantuan) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+mysqli_stmt_bind_param($stmt, "ississsss", $id_kepala_desa, $no_kk, $nama, $jumlah_anggota, $desa, $kecamatan, $kabupaten, $provinsi, $bantuan);
+mysqli_stmt_execute($stmt);
+
+if (mysqli_stmt_affected_rows($stmt) > 0) {
+    $_SESSION['sukses'] = "Wadah Kartu Keluarga berhasil dibuat! Silakan klik 'Detail' untuk memasukkan anggota.";
+    header("location: data_kk.php");
+    exit;
 } else {
-    // Jika gagal, tampilkan pesan error SQL-nya untuk proses debugging
-    echo "<script>
-            alert('Gagal menambahkan data');
-            window.location.href = 'tambah_kk.php';
-          </script>";
+    $err = urlencode("Gagal menambahkan data KK.");
+    header("location: tambah_kk.php?error=$err");
+    exit;
 }
 ?>

@@ -7,25 +7,87 @@ if (!isset($_SESSION['username'])) {
 
 include '../backend/koneksi.php'; 
 
-// Mengambil data penduduk berdasarkan ID
-$id_penduduk = $_GET['id_penduduk'];
+// Menangkap ID penduduk dari URL
+$id_penduduk = isset($_GET['id_penduduk']) ? mysqli_real_escape_string($koneksi, $_GET['id_penduduk']) : "";
 $query = mysqli_query($koneksi, "SELECT * FROM tabel_penduduk WHERE id_penduduk='$id_penduduk'");
 $data = mysqli_fetch_assoc($query);
 
 // Jika data tidak ditemukan
 if (!$data) {
-    echo "<script>alert('Data tidak ditemukan!'); window.location.href='data_penduduk.php';</script>";
+    echo "<script>window.location.href='data_penduduk.php';</script>";
     exit;
 }
+
+// Menangkap pesan error dari proses edit (jika ada)
+$pesan_error = isset($_GET['error']) ? $_GET['error'] : "";
 ?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Penduduk - Admin</title>
+    <title>Edit Penduduk - Admin Desa As Manulea</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="dashboard.css">
+    <style>
+        /* Gaya Pop-up Modal di Tengah Halaman */
+        .modal-notif-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.2s ease;
+        }
+        .modal-notif-box {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            position: relative;
+        }
+        .modal-notif-box i.icon-danger {
+            font-size: 50px;
+            color: #dc3545;
+            margin-bottom: 15px;
+        }
+        .modal-notif-box h3 {
+            margin-bottom: 10px;
+            color: #333;
+            font-size: 20px;
+        }
+        .modal-notif-box p {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+        .btn-modal-close {
+            background: #0061f2;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .btn-modal-close:hover {
+            background: #004ecc;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
 </head>
 <body>
     <div class="layout-container">
@@ -65,7 +127,6 @@ if (!$data) {
                 <div class="card-table" style="padding: 30px;">
                     <form action="proses_edit_penduduk.php" method="POST">
                         
-                        <!-- ID yang di-hidden untuk keperluan UPDATE SQL -->
                         <input type="hidden" name="id_penduduk" value="<?php echo $data['id_penduduk']; ?>">
 
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
@@ -74,17 +135,17 @@ if (!$data) {
                             <div>
                                 <div class="form-group">
                                     <label>NIK *</label>
-                                    <input type="number" name="nik" class="form-control" value="<?php echo $data['nik']; ?>" required>
+                                    <input type="number" name="nik" class="form-control" value="<?php echo htmlspecialchars($data['nik']); ?>" required>
                                 </div>
                                 
                                 <div class="form-group">
                                     <label>Nama Lengkap *</label>
-                                    <input type="text" name="nama" class="form-control" value="<?php echo $data['nama']; ?>" required>
+                                    <input type="text" name="nama" class="form-control" value="<?php echo htmlspecialchars($data['nama']); ?>" required>
                                 </div>
 
                                 <div class="form-group">
                                     <label>Tempat Lahir *</label>
-                                    <input type="text" name="tempat_lahir" class="form-control" value="<?php echo $data['tempat_lahir']; ?>" required>
+                                    <input type="text" name="tempat_lahir" class="form-control" value="<?php echo htmlspecialchars($data['tempat_lahir']); ?>" required>
                                 </div>
 
                                 <div class="form-group">
@@ -126,12 +187,12 @@ if (!$data) {
 
                                 <div class="form-group">
                                     <label>Pendidikan Terakhir</label>
-                                    <input type="text" name="pendidikan" class="form-control" value="<?php echo $data['pendidikan']; ?>">
+                                    <input type="text" name="pendidikan" class="form-control" value="<?php echo htmlspecialchars($data['pendidikan']); ?>">
                                 </div>
 
                                 <div class="form-group">
                                     <label>Pekerjaan</label>
-                                    <input type="text" name="pekerjaan" class="form-control" value="<?php echo $data['pekerjaan']; ?>">
+                                    <input type="text" name="pekerjaan" class="form-control" value="<?php echo htmlspecialchars($data['pekerjaan']); ?>">
                                 </div>
 
                                 <div class="form-group">
@@ -144,7 +205,7 @@ if (!$data) {
                                 </div>
                             </div>
 
-                        </div> <!-- Akhir Grid -->
+                        </div>
 
                         <div style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
                             <button type="submit" class="btn btn-warning" style="background-color: #f4a100; color: white;"><i class="fas fa-save"></i> Perbarui Data</button>
@@ -155,5 +216,21 @@ if (!$data) {
             </div>
         </div>
     </div>
+
+    <!-- MODAL POP-UP NOTIFIKASI DI TENGAH HALAMAN -->
+    <div class="modal-notif-overlay" id="modalNotif" style="display: <?php echo (!empty($pesan_error)) ? 'flex' : 'none'; ?>;">
+        <div class="modal-notif-box">
+            <i class="fas fa-exclamation-triangle icon-danger"></i>
+            <h3>Perhatian</h3>
+            <p><?php echo htmlspecialchars($pesan_error); ?></p>
+            <button class="btn-modal-close" onclick="closeModalNotif()">OK</button>
+        </div>
+    </div>
+
+    <script>
+        function closeModalNotif() {
+            document.getElementById('modalNotif').style.display = 'none';
+        }
+    </script>
 </body>
 </html>

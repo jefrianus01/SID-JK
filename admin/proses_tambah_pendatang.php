@@ -1,31 +1,31 @@
 <?php
 session_start();
-if (!isset($_SESSION['username'])) {
-    header("location: ../index.php");
+if (!isset($_SESSION['username'])) { header("location: ../index.php"); exit; }
+include '../backend/koneksi.php'; 
+
+if (empty($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+    $err = urlencode("Validasi keamanan gagal (Token CSRF tidak valid).");
+    header("location: tambah_pendatang.php?error=$err");
     exit;
 }
 
-include '../backend/koneksi.php';
+$nik            = trim($_POST['nik']);
+$nama           = trim($_POST['nama']);
+$asal_wilayah   = trim($_POST['asal_wilayah']);
+$tanggal_datang = $_POST['tanggal_datang'];
+$keterangan     = trim($_POST['keterangan']);
 
-$nik            = mysqli_real_escape_string($koneksi, $_POST['nik']);
-$nama           = mysqli_real_escape_string($koneksi, $_POST['nama']);
-$jenis_kelamin  = mysqli_real_escape_string($koneksi, $_POST['jenis_kelamin']);
-$tanggal_datang = mysqli_real_escape_string($koneksi, $_POST['tanggal_datang']);
-$alamat_asal    = mysqli_real_escape_string($koneksi, $_POST['alamat_asal']);
-$keterangan     = mysqli_real_escape_string($koneksi, $_POST['keterangan']);
+// Asumsi struktur kolom tabel_pendatang (sesuaikan nama kolom jika beda): nik, nama, asal_wilayah, tanggal_datang, keterangan
+$stmt = mysqli_prepare($koneksi, "INSERT INTO tabel_pendatang (nik, nama, asal_wilayah, tanggal_datang, keterangan) VALUES (?, ?, ?, ?, ?)");
+mysqli_stmt_bind_param($stmt, "sssss", $nik, $nama, $asal_wilayah, $tanggal_datang, $keterangan);
+mysqli_stmt_execute($stmt);
 
-$query = "INSERT INTO tabel_pendatang (nik, nama, jenis_kelamin, tanggal_datang, alamat_asal, keterangan) 
-          VALUES ('$nik', '$nama', '$jenis_kelamin', '$tanggal_datang', '$alamat_asal', '$keterangan')";
-
-if (mysqli_query($koneksi, $query)) {
-    echo "<script>
-            alert('Data pendatang berhasil disimpan!');
-            window.location.href = 'pendatang.php';
-          </script>";
+if (mysqli_stmt_affected_rows($stmt) > 0) {
+    $_SESSION['sukses'] = "Data Pendatang berhasil dicatat!";
+    header("location: pendatang.php");
 } else {
-    echo "<script>
-            alert('Gagal menyimpan data');
-            window.location.href = 'tambah_pendatang.php';
-          </script>";
+    $err = urlencode("Gagal menyimpan data pendatang.");
+    header("location: tambah_pendatang.php?error=$err");
 }
+exit;
 ?>

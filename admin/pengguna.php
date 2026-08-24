@@ -1,29 +1,48 @@
 <?php
 session_start();
+
+// Cek apakah pengguna sudah login
 if (!isset($_SESSION['username'])) {
     header("location: ../index.php");
     exit;
 }
-include '../backend/koneksi.php'; 
+
+// Generate CSRF token if not exists
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+include '../backend/koneksi.php';
 
 $pesan = "";
 
 // PROSES TAMBAH PENGGUNA SISTEM BARU
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['tambah_pengguna'])) {
+    // Verifikasi CSRF token
+    if (empty($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        die("CSRF token invalid!");
+    }
+    
     $nama_pengguna   = mysqli_real_escape_string($koneksi, $_POST['nama_pengguna']);
     $username        = mysqli_real_escape_string($koneksi, $_POST['username']);
     $password        = mysqli_real_escape_string($koneksi, $_POST['password']);
     $status_pengguna = mysqli_real_escape_string($koneksi, $_POST['status_pengguna']);
 
     if (!empty($username) && !empty($password) && !empty($status_pengguna)) {
-        // Cek apakah username sudah ada di database
-        $cek = mysqli_query($koneksi, "SELECT * FROM tabel_pengguna WHERE username = '$username'");
-        if (mysqli_num_rows($cek) > 0) {
+        // Cek apakah username sudah ada di database menggunakan prepared statement
+        $stmt = mysqli_prepare($koneksi, "SELECT * FROM tabel_pengguna WHERE username = ?");
+        mysqli_stmt_bind_param($stmt, "s", $username);
+        mysqli_stmt_execute($stmt);
+        $cek_result = mysqli_stmt_get_result($stmt);
+        $cek = mysqli_num_rows($cek_result);
+
+        if ($cek > 0) {
             $pesan = "Username sudah terdaftar, silakan gunakan username lain!";
         } else {
-            $query = "INSERT INTO tabel_pengguna (username, nama_pengguna, password, status_pengguna) 
-                      VALUES ('$username', '$nama_pengguna', '$password', '$status_pengguna')";
-            if (mysqli_query($koneksi, $query)) {
+            // Insert menggunakan prepared statement
+            $stmt2 = mysqli_prepare($koneksi, "INSERT INTO tabel_pengguna (username, nama_pengguna, password, status_pengguna) VALUES (?, ?, ?, ?)");
+            mysqli_stmt_bind_param($stmt2, "ssss", $username, $nama_pengguna, $password, $status_pengguna);
+            if (mysqli_stmt_execute($stmt2)) {
                 echo "<script>alert('Pengguna sistem berhasil ditambahkan!'); window.location.href='pengguna.php';</script>";
                 exit;
             } else {
@@ -36,16 +55,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['tambah_pengguna'])) {
 }
 
 // PROSES HAPUS PENGGUNA BERDASARKAN USERNAME
-if (isset($_GET['hapus'])) {
-    $username_hapus = mysqli_real_escape_string($koneksi, $_GET['hapus']);
+if (isset($_POST['hapus'])) {
+    // Verifikasi CSRF token
+    if (empty($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+        die("CSRF token invalid!");
+    }
+    
+    $username_hapus = mysqli_real_escape_string($koneksi, $_POST['hapus']);
     
     // Pengaman: Mencegah admin menghapus akunnya sendiri yang sedang aktif login
     if ($username_hapus == $_SESSION['username']) {
         echo "<script>alert('Peringatan: Tidak dapat menghapus akun yang sedang aktif digunakan!'); window.location.href='pengguna.php';</script>";
         exit;
     } else {
-        $query_hapus = "DELETE FROM tabel_pengguna WHERE username = '$username_hapus'";
-        if (mysqli_query($koneksi, $query_hapus)) {
+        // Hapus menggunakan prepared statement
+        $stmt = mysqli_prepare($koneksi, "DELETE FROM tabel_pengguna WHERE username = ?");
+        mysqli_stmt_bind_param($stmt, "s", $username_hapus);
+        if (mysqli_stmt_execute($stmt)) {
             echo "<script>alert('Pengguna berhasil dihapus dari database!'); window.location.href='pengguna.php';</script>";
             exit;
         } else {
@@ -154,6 +180,7 @@ if (isset($_GET['hapus'])) {
                             <h3><i class="fas fa-user-plus"></i> Tambah Pengguna Baru</h3>
                         </div>
                         <form action="" method="POST">
+                            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                             <div class="form-group" style="margin-bottom: 12px;">
                                 <label style="font-size: 13px; font-weight: bold;">Nama Lengkap *</label>
                                 <input type="text" name="nama_pengguna" class="form-control" placeholder="Nama lengkap" required style="width: 100%; padding: 8px; margin-top: 5px;">
@@ -224,11 +251,13 @@ if (isset($_GET['hapus'])) {
                                                 <?php echo htmlspecialchars($row['status_pengguna']); ?>
                                             </span>
                                         </td>
-                                        <td>
-                                            <!-- Tombol Hapus menggunakan parameter username -->
-                                            <a href="pengguna.php?hapus=<?php echo urlencode($row['username']); ?>" class="btn btn-sm btn-delete" onclick="return confirm('Yakin ingin menghapus pengguna <?php echo htmlspecialchars($row['username']); ?> ini?');"><i class="fas fa-trash"></i></a>
-                                        </td>
-                                    </tr>
+<td>
+                                            <!-- Form Hapus menggunakan POST method -->
+                                            <form method="POST" style="display:inline" onsubmit="return confirm('Yakin ingin menghapus pengguna <?php echo htmlspecialchars($row['username']); ?> ini?');">
+                                                <input type="hidden" name="hapus" value="<?php echo urlencode($row['username']); ?>">
+                                                <button type="submit" class="btn btn-sm btn-delete"><i class="fas fa-trash"></i></button>
+                                            </form>
+                                        </tr>
                                     <?php 
                                         endwhile; 
                                     else: 

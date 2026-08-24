@@ -1,8 +1,10 @@
 <?php
 session_start();
-
-// Panggil koneksi langsung dengan mundur satu folder (../) lalu masuk ke backend
-include '../backend/koneksi.php';
+if (!isset($_SESSION['username'])) {
+    header("location: ../index.php");
+    exit;
+}
+include '../backend/koneksi.php'; 
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -10,95 +12,113 @@ include '../backend/koneksi.php';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cetak Laporan Penduduk - Desa As Manulea</title>
-    <!-- Memanggil CSS Cetak -->
-    <link rel="stylesheet" href="cetak_laporan_penduduk.css">
+    <style>
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            color: #000;
+            background-color: #fff;
+            margin: 0;
+            padding: 20px 40px;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #000;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .header h2, .header h3, .header h4 {
+            margin: 2px 0;
+        }
+        .table-data {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        .table-data th, .table-data td {
+            border: 1px solid #000;
+            padding: 8px;
+        }
+        .table-data th {
+            background-color: #f2f2f2;
+        }
+        .signature-area {
+            width: 300px;
+            float: right;
+            text-align: center;
+            margin-top: 40px;
+        }
+        .signature-area p {
+            margin: 5px 0;
+        }
+        .signature-name {
+            margin-top: 70px;
+            font-weight: bold;
+            text-decoration: underline;
+        }
+        /* CSS ini mengatur agar saat di-print, tabel rapi dan tidak terpotong */
+        @media print {
+            @page { margin: 1cm; }
+            body { padding: 0; }
+        }
+    </style>
 </head>
-<body>
-    <div class="container">
-        
-        <!-- KOP SURAT DESA -->
-        <div class="header-page">
-            <h1>DESA <span style="color: #555;">AS MANULEA</span></h1>
-            <h2>LAPORAN DATA PENDUDUK</h2>
-            <p>Kecamatan Sasitamean, Kabupaten Malaka, Provinsi Nusa Tenggara Timur</p>
-            <p>Kode Pos: 85764</p>
-        </div>
+<body onload="window.print()"> <!-- Script ini otomatis memunculkan pop-up Print -->
 
-        <!-- BAGIAN RINGKASAN STATISTIK -->
-        <div class="section">
-            <h3>Ringkasan Data</h3>
-            <?php
-            // Menghitung jumlah dari tabel yang sesuai
-            $total = mysqli_query($koneksi, "SELECT COUNT(*) as jml FROM tabel_penduduk")->fetch_assoc()['jml'];
-            $lk = mysqli_query($koneksi, "SELECT COUNT(*) as jml FROM tabel_penduduk WHERE jenis_kelamin='Laki-laki'")->fetch_assoc()['jml'];
-            $pr = mysqli_query($koneksi, "SELECT COUNT(*) as jml FROM tabel_penduduk WHERE jenis_kelamin='Perempuan'")->fetch_assoc()['jml'];
-            $kk = mysqli_query($koneksi, "SELECT COUNT(*) as jml FROM tabel_kk")->fetch_assoc()['jml'];
-            ?>
-            <table>
-                <tr><th>Total Penduduk</th><td>: <?php echo $total; ?> orang</td></tr>
-                <tr><th>Laki-Laki</th><td>: <?php echo $lk; ?> orang</td></tr>
-                <tr><th>Perempuan</th><td>: <?php echo $pr; ?> orang</td></tr>
-                <tr><th>Total Keluarga</th><td>: <?php echo $kk; ?> KK</td></tr>
-            </table>
-        </div>
-
-        <!-- BAGIAN TABEL DATA PENDUDUK -->
-        <div class="section">
-            <h3>Daftar Penduduk</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>No</th>
-                        <th>Nama Lengkap</th>
-                        <th>Jenis Kelamin</th>
-                        <th>Tempat/Tgl Lahir</th>
-                        <th>No KK</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php
-                    $no = 1;
-                    
-                    // Query JOIN untuk mengambil data lintas tabel
-                    $query = "SELECT p.nama, p.jenis_kelamin, p.tempat_lahir, p.tanggal_lahir, k.no_kk 
-                              FROM tabel_penduduk p
-                              LEFT JOIN tabel_anggota a ON p.id_penduduk = a.id_penduduk
-                              LEFT JOIN tabel_kk k ON a.id_kk = k.id_kk
-                              ORDER BY p.nama ASC";
-                              
-                    $result = mysqli_query($koneksi, $query);
-                    
-                    while($row = mysqli_fetch_assoc($result)):
-                        // Jika penduduk belum memiliki KK, tampilkan tanda strip (-)
-                        $no_kk = !empty($row['no_kk']) ? $row['no_kk'] : '-';
-                        
-                        // Format tanggal lahir agar lebih mudah dibaca
-                        $tgl_lahir = date('d-m-Y', strtotime($row['tanggal_lahir']));
-                    ?>
-                    <tr>
-                        <td><?php echo $no++; ?></td>
-                        <td><?php echo htmlspecialchars($row['nama']); ?></td>
-                        <td><?php echo htmlspecialchars($row['jenis_kelamin']); ?></td>
-                        <td><?php echo htmlspecialchars($row['tempat_lahir']) . ', ' . $tgl_lahir; ?></td>
-                        <td><?php echo htmlspecialchars($no_kk); ?></td>
-                    </tr>
-                    <?php endwhile; ?>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- FOOTER LAPORAN -->
-        <div class="footer-page">
-            <p>Dicetak pada: <?php echo date('d F Y, H:i:s'); ?> WITA</p>
-            <p>Berdasarkan data tanggal: <?php echo date('d F Y'); ?></p>
-            <p>— Dokumen Resmi Sistem Informasi Kependudukan —</p>
-        </div>
-        
+    <div class="header">
+        <h2>PEMERINTAH KABUPATEN MALAKA</h2>
+        <h3>KECAMATAN SASITAMEAN</h3>
+        <h4>DESA AS MANULEA</h4>
+        <p style="font-size: 12px; margin-top: 5px;">Alamat: Kantor Desa As Manulea, Kec. Sasitamean, Kab. Malaka, NTT</p>
     </div>
 
-    <!-- Menjalankan jendela print otomatis -->
-    <script>
-        window.print();
-    </script>
+    <h3 style="text-align: center; text-decoration: underline;">LAPORAN DATA PENDUDUK AKTIF</h3>
+
+    <table class="table-data">
+        <thead>
+            <tr>
+                <th>No</th>
+                <th>NIK</th>
+                <th>Nama Lengkap</th>
+                <th>Jenis Kelamin</th>
+                <th>Tempat, Tanggal Lahir</th>
+                <th>Agama</th>
+                <th>Pekerjaan</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php
+            $query = mysqli_query($koneksi, "SELECT * FROM tabel_penduduk WHERE status = 'Aktif' ORDER BY nama ASC");
+            if(mysqli_num_rows($query) > 0){
+                $no = 1;
+                while($row = mysqli_fetch_assoc($query)){
+                    $ttl = $row['tempat_lahir'] . ', ' . date('d-m-Y', strtotime($row['tanggal_lahir']));
+                    echo "<tr>
+                            <td style='text-align: center;'>".$no++."</td>
+                            <td>".$row['nik']."</td>
+                            <td>".$row['nama']."</td>
+                            <td style='text-align: center;'>".$row['jenis_kelamin']."</td>
+                            <td>".$ttl."</td>
+                            <td>".$row['agama']."</td>
+                            <td>".$row['pekerjaan']."</td>
+                          </tr>";
+                }
+            } else {
+                echo "<tr><td colspan='7' style='text-align: center;'>Tidak ada data.</td></tr>";
+            }
+            ?>
+        </tbody>
+    </table>
+
+    <!-- Kolom Tanda Tangan Kepala Desa -->
+    <div class="signature-area">
+        <p>As Manulea, <?php echo date('d F Y'); ?></p>
+        <p>Kepala Desa As Manulea</p>
+        <div class="signature-name">
+            ( NAMA KEPALA DESA )
+        </div>
+        <p>NIP. .......................................</p>
+    </div>
+
 </body>
 </html>

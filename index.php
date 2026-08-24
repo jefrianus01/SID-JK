@@ -1,5 +1,11 @@
 <?php
 session_start();
+
+// Generate CSRF token if not exists
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 include 'backend/koneksi.php';
 
 // Jika sudah login, arahkan ke dashboard masing-masing
@@ -238,6 +244,7 @@ $alamat_kantor = isset($profil['alamat_kantor']) ? $profil['alamat_kantor'] : 'K
             <p style="font-size: 12px; color: #666; margin-bottom: 20px;">Masukkan akun resmi Anda untuk masuk ke sistem.</p>
             
             <form action="proses_login.php" method="post">
+                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
                 <div class="form-group">
                     <label for="username">Username</label>
                     <input type="text" id="username" name="username" placeholder="Masukkan username" required>

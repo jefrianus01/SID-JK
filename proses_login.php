@@ -1,52 +1,43 @@
 <?php
-// Mengaktifkan session PHP
 session_start();
-
-// Menghubungkan dengan koneksi
 include 'backend/koneksi.php';
 
-// Menangkap data yang dikirim dari form login (menggunakan pengamanan anti SQL Injection dasar)
-$username = mysqli_real_escape_string($koneksi, $_POST['username']);
-$password = mysqli_real_escape_string($koneksi, $_POST['password']);
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $username = trim($_POST['username']);
+    $password = trim($_POST['password']);
 
-// Menyeleksi data pengguna dengan username dan password yang sesuai
-$login = mysqli_query($koneksi, "SELECT * FROM tabel_pengguna WHERE username='$username' AND password='$password'");
+    // Menggunakan prepared statement untuk keamanan login
+    // Pastikan tabel database untuk login bernama 'tabel_pengguna' atau 'user' 
+    // dan kolomnya bernama 'username' serta 'password'
+    $stmt = mysqli_prepare($koneksi, "SELECT * FROM tabel_pengguna WHERE username = ?");
+    mysqli_stmt_bind_param($stmt, "s", $username);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
 
-// Menghitung jumlah data yang ditemukan
-$cek = mysqli_num_rows($login);
-
-// Cek apakah username dan password di temukan pada database
-if($cek > 0){
-    $data = mysqli_fetch_assoc($login);
-
-    // Menyimpan session
-    $_SESSION['username'] = $username;
-    $_SESSION['nama_pengguna'] = $data['nama_pengguna'];
-    $_SESSION['status_pengguna'] = $data['status_pengguna'];
-
-    // Cek hak akses dan arahkan (redirect) sesuai peran pengguna
-    if($data['status_pengguna'] == "Admin"){
-        // Admin: akses kelola semua data
-        header("location:admin/dashboard.php");
-        
-    } else if($data['status_pengguna'] == "Kepala Desa"){
-        // Kepala Desa: menerima laporan
-        header("location:kepaladesa/dashboard.php");
-        
-    } else if($data['status_pengguna'] == "Kepala Dusun"){
-        // Kepala Dusun: informasi & validasi
-        header("location:dusun/dashboard.php");
-        
-    } else if($data['status_pengguna'] == "RT" || $data['status_pengguna'] == "RW"){
-        // RT/RW: informasi & validasi
-        header("location:rtrw/dashboard.php");
-        
+    if ($row = mysqli_fetch_assoc($result)) {
+        // Cek password (bisa menggunakan password_verify jika di-hash, atau perbandingan biasa jika plain text)
+        if ($password === $row['password'] || password_verify($password, $row['password'])) {
+            
+            // Set session login
+            $_SESSION['username'] = $row['username'];
+            $_SESSION['status_pengguna'] = isset($row['status_pengguna']) ? $row['status_pengguna'] : 'Admin';
+            
+            // Arahkan berdasarkan peran (Opsional)
+            if($_SESSION['status_pengguna'] == 'Kepala Desa') {
+                header("location: kepaladesa/dashboard.php");
+            } else {
+                header("location: admin/dashboard.php");
+            }
+            exit;
+        } else {
+            $err = urlencode("Password salah!");
+            header("location: index.php?error=$err");
+            exit;
+        }
     } else {
-        // Jika status tidak dikenali
-        header("location:index.php?pesan=gagal");
+        $err = urlencode("Username tidak ditemukan!");
+        header("location: index.php?error=$err");
+        exit;
     }
-} else {
-    // Jika tidak ada data yang cocok (Username/Password salah)
-    header("location:index.php?pesan=gagal");
 }
 ?>

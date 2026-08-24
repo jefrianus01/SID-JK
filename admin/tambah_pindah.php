@@ -1,11 +1,21 @@
 <?php
 session_start();
+// Cek login
 if (!isset($_SESSION['username'])) {
     header("location: ../index.php");
     exit;
 }
 
+// Generate CSRF token untuk keamanan form
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+// Panggil koneksi
 include '../backend/koneksi.php'; 
+
+// Menangkap pesan error jika ada proses yang gagal
+$pesan_error = isset($_GET['error']) ? $_GET['error'] : "";
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -16,6 +26,7 @@ include '../backend/koneksi.php';
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="dashboard.css">
     <style>
+        /* CSS DROPDOWN SIDEBAR */
         .submenu { display: none; list-style: none; padding-left: 20px; background: rgba(0, 0, 0, 0.05); margin-bottom: 5px; }
         .submenu.show { display: block; }
         .submenu li a { font-size: 14px; padding: 8px 15px; opacity: 0.8; }
@@ -24,6 +35,15 @@ include '../backend/koneksi.php';
         .toggle-icon { font-size: 12px; transition: transform 0.3s ease; }
         .toggle-icon.rotate { transform: rotate(180deg); }
         .menu-divider { border-top: 1px solid rgba(255,255,255,0.1); margin: 15px 0; padding-top: 10px; }
+        
+        /* CSS POP-UP MODAL NOTIFIKASI */
+        .modal-notif-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 9999; justify-content: center; align-items: center; animation: fadeIn 0.2s ease; }
+        .modal-notif-box { background: white; padding: 30px; border-radius: 12px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative; }
+        .modal-notif-box i.icon-danger { font-size: 50px; color: #dc3545; margin-bottom: 15px; }
+        .modal-notif-box h3 { margin-bottom: 10px; color: #333; font-size: 20px; }
+        .modal-notif-box p { color: #666; font-size: 14px; margin-bottom: 20px; line-height: 1.5; }
+        .btn-modal-close { background: #0061f2; color: white; border: none; padding: 10px 25px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
     </style>
 </head>
 <body>
@@ -91,13 +111,16 @@ include '../backend/koneksi.php';
                 <div class="card-table" style="padding: 30px; max-width: 700px;">
                     <form action="proses_tambah_pindah.php" method="POST">
                         
+                        <!-- Token Keamanan CSRF yang Disembunyikan -->
+                        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                        
                         <div class="form-group">
                             <label>Pilih Penduduk yang Pindah *</label>
                             <select name="id_penduduk" class="form-control" required>
                                 <option value="">-- Pilih Penduduk --</option>
                                 <?php
-                                // Mengambil data penduduk dari database
-                                $q_penduduk = mysqli_query($koneksi, "SELECT id_penduduk, nik, nama FROM tabel_penduduk ORDER BY nama ASC");
+                                // HANYA Mengambil data penduduk yang statusnya masih 'Aktif'
+                                $q_penduduk = mysqli_query($koneksi, "SELECT id_penduduk, nik, nama FROM tabel_penduduk WHERE status = 'Aktif' ORDER BY nama ASC");
                                 while($p = mysqli_fetch_assoc($q_penduduk)) {
                                     echo "<option value='".$p['id_penduduk']."'>".$p['nik']." - ".$p['nama']."</option>";
                                 }
@@ -130,6 +153,17 @@ include '../backend/koneksi.php';
         </div>
     </div>
 
+    <!-- MODAL POP-UP NOTIFIKASI ERROR (Jika Gagal Simpan) -->
+    <div class="modal-notif-overlay" id="modalNotif" style="display: <?php echo (!empty($pesan_error)) ? 'flex' : 'none'; ?>;">
+        <div class="modal-notif-box">
+            <i class="fas fa-exclamation-triangle icon-danger"></i>
+            <h3>Perhatian</h3>
+            <p><?php echo htmlspecialchars($pesan_error); ?></p>
+            <button class="btn-modal-close" onclick="document.getElementById('modalNotif').style.display='none'">OK</button>
+        </div>
+    </div>
+
+    <!-- SCRIPT DROPDOWN SIDEBAR -->
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             var toggles = document.querySelectorAll('.submenu-toggle');

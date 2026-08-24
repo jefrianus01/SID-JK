@@ -4,8 +4,11 @@ if (!isset($_SESSION['username'])) {
     header("location: ../index.php");
     exit;
 }
-
 include '../backend/koneksi.php'; 
+
+$pesan_sukses = isset($_SESSION['sukses']) ? $_SESSION['sukses'] : "";
+$pesan_error = isset($_GET['error']) ? $_GET['error'] : "";
+unset($_SESSION['sukses']); 
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -16,92 +19,56 @@ include '../backend/koneksi.php';
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="dashboard.css">
     <style>
-        .submenu { display: none; list-style: none; padding-left: 20px; background: rgba(0, 0, 0, 0.05); margin-bottom: 5px; }
-        .submenu.show { display: block; }
-        .submenu li a { font-size: 14px; padding: 8px 15px; opacity: 0.8; }
-        .submenu li a:hover { opacity: 1; padding-left: 20px; }
-        .has-submenu > a { display: flex; justify-content: space-between; align-items: center; }
-        .toggle-icon { font-size: 12px; transition: transform 0.3s ease; }
-        .toggle-icon.rotate { transform: rotate(180deg); }
-        .menu-divider { border-top: 1px solid rgba(255,255,255,0.1); margin: 15px 0; padding-top: 10px; }
+        .modal-notif-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 9999; justify-content: center; align-items: center; animation: fadeIn 0.2s ease; }
+        .modal-notif-box { background: white; padding: 30px; border-radius: 12px; width: 100%; max-width: 400px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative; }
+        .modal-notif-box i.icon-success { font-size: 50px; color: #198754; margin-bottom: 15px; }
+        .modal-notif-box i.icon-danger { font-size: 50px; color: #dc3545; margin-bottom: 15px; }
+        .modal-notif-box h3 { margin-bottom: 10px; color: #333; font-size: 20px; }
+        .modal-notif-box p { color: #666; font-size: 14px; margin-bottom: 20px; line-height: 1.5; }
+        .btn-modal-close { background: #0061f2; color: white; border: none; padding: 10px 25px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
     </style>
 </head>
 <body>
     <div class="layout-container">
-        
         <!-- SIDEBAR -->
         <div class="sidebar">
-            <div class="sidebar-header">
-                <div class="logo"><i class="fas fa-landmark"></i></div>
-                <h2>Desa As Manulea</h2>
-                <p>ADMIN</p>
-            </div>
-            
+            <div class="sidebar-header"><div class="logo"><i class="fas fa-landmark"></i></div><h2>Desa As Manulea</h2><p>Kab. Malaka</p></div>
             <ul class="nav-menu">
-                <li><a href="dashboard.php"><i class="fas fa-desktop"></i> <span>DASHBOARD</span></a></li>
-                
-                <li class="has-submenu">
-                    <a href="#" class="submenu-toggle"><i class="fas fa-database"></i> <span>KELOLA DATA</span> <i class="fas fa-chevron-down toggle-icon"></i></a>
-                    <ul class="submenu">
-                        <li><a href="data_penduduk.php"><i class="fas fa-users"></i> Data Penduduk</a></li>
-                        <li><a href="data_kk.php"><i class="fas fa-id-card"></i> Data KK</a></li>
-                    </ul>
-                </li>
-
-                <li class="has-submenu">
-                    <a href="#" class="submenu-toggle"><i class="fas fa-sync-alt"></i> <span>SIRKULASI PENDUDUK</span> <i class="fas fa-chevron-down toggle-icon rotate"></i></a>
-                    <ul class="submenu show">
-                        <li><a href="kelahiran.php"><i class="fas fa-baby"></i> Data Kelahiran</a></li>
-                        <li><a href="kematian.php"><i class="fas fa-book-dead"></i> Data Kematian</a></li>
-                        <li><a href="pindah.php"><i class="fas fa-truck-moving"></i> Data Pindah</a></li>
-                        <li><a href="pendatang.php" class="active"><i class="fas fa-suitcase-rolling"></i> Data Pendatang</a></li>
-                    </ul>
-                </li>
-
-                <li><a href="data_pengajuan.php"><i class="fas fa-file-signature"></i> <span>DATA PENGAJUAN</span></a></li>
-                <li><a href="master_data.php"><i class="fas fa-server"></i> <span>MASTER DATA</span></a></li>
-                <li><a href="data_dusun.php"><i class="fas fa-map-marker-alt"></i> <span>DATA DUSUN/RT</span></a></li>
-                <li><a href="data_profil.php"><i class="fas fa-id-badge"></i> <span>DATA PROFIL</span></a></li>
-                
-                <li><a href="laporan.php"><i class="fas fa-print"></i> <span>CETAK LAPORAN</span></a></li>
-
-                <li class="menu-divider"></li>
-
-                <li><a href="setting.php"><i class="fas fa-cog"></i> <span>Setting</span></a></li>
-                <li><a href="pengguna.php"><i class="fas fa-user-cog"></i> <span>PENGGUNA SISTEM</span></a></li>
-                <li><a href="../logout.php"><i class="fas fa-sign-out-alt"></i> <span>LOGOUT</span></a></li>
+                <li><a href="dashboard.php"><i class="fas fa-desktop"></i> <span>Dashboard</span></a></li>
+                <li><a href="data_penduduk.php"><i class="fas fa-users"></i> <span>Data Penduduk</span></a></li>
+                <li><a href="data_kk.php"><i class="fas fa-id-card"></i> <span>Data Keluarga</span></a></li>
+                <li><a href="kelahiran.php"><i class="fas fa-baby"></i> <span>Data Kelahiran</span></a></li>
+                <li><a href="kematian.php"><i class="fas fa-book-dead"></i> <span>Data Kematian</span></a></li>
+                <li><a href="pindah.php"><i class="fas fa-truck-moving"></i> <span>Data Pindah</span></a></li>
+                <li><a href="pendatang.php" class="active"><i class="fas fa-suitcase-rolling"></i> <span>Data Pendatang</span></a></li>
+                <li><a href="laporan.php"><i class="fas fa-file-alt"></i> <span>Laporan</span></a></li>
+                <li><a href="../logout.php"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></a></li>
             </ul>
         </div>
 
-        <!-- MAIN CONTENT -->
         <div class="main-content">
             <div class="header">
-                <h1>SISTEM INFORMASI DATA PENDUDUK DESA AS MANULEA</h1>
+                <h1>SISTEM INFORMASI DATA KEPENDUDUKAN</h1>
                 <div class="user-info">
-                    <img src="https://ui-avatars.com/api/?name=<?php echo isset($_SESSION['username']) ? $_SESSION['username'] : 'Admin'; ?>&background=0061f2&color=fff" alt="User Avatar">
-                    <span>Halo, <strong><?php echo isset($_SESSION['username']) ? $_SESSION['username'] : 'Admin'; ?></strong></span>
+                    <img src="https://ui-avatars.com/api/?name=<?php echo $_SESSION['username']; ?>&background=0061f2&color=fff" alt="Avatar">
+                    <span>Halo, <strong><?php echo $_SESSION['username']; ?></strong></span>
                 </div>
             </div>
 
             <div class="content-wrapper">
-                
                 <div class="welcome-section" style="padding: 15px 30px; margin-bottom: 20px;">
-                    <h2><i class="fas fa-suitcase-rolling"></i> Data Warga Pendatang</h2>
-                    <p style="margin-top:5px;">Pencatatan penduduk dari luar daerah yang masuk dan menetap di Desa As Manulea.</p>
+                    <h2><i class="fas fa-suitcase-rolling"></i> Pengelolaan Data Pendatang</h2>
                 </div>
 
-                <!-- TOMBOL NAVIGASI MENUJU HALAMAN TAMBAH PENDATANG -->
                 <div style="margin-bottom: 20px;">
-                    <a href="tambah_pendatang.php" style="background-color: #198754; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: 500; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        <i class="fas fa-plus"></i> Tambah Data Pendatang
-                    </a>
+                    <a href="tambah_pendatang.php" class="btn btn-primary"><i class="fas fa-plus"></i> Tambah Data Pendatang</a>
                 </div>
 
                 <div class="card-table">
                     <div class="card-header">
-                        <h3>Daftar Pendatang</h3>
+                        <h3>Daftar Warga Pendatang</h3>
                     </div>
-
                     <?php
                     $query = "SELECT * FROM tabel_pendatang ORDER BY tanggal_datang DESC";
                     $result = mysqli_query($koneksi, $query);
@@ -111,64 +78,48 @@ include '../backend/koneksi.php';
                             <thead>
                                 <tr>
                                     <th>No</th>
-                                    <th>NIK & Nama</th>
-                                    <th>J. Kelamin</th>
-                                    <th>Tgl Datang</th>
-                                    <th>Alamat Asal</th>
+                                    <th>NIK</th>
+                                    <th>Nama Pendatang</th>
+                                    <th>Asal Wilayah</th>
+                                    <th>Tanggal Datang</th>
                                     <th>Keterangan</th>
-                                    <th>Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php 
-                                if($result && mysqli_num_rows($result) > 0): 
-                                    $no=1; 
-                                    while($row = mysqli_fetch_assoc($result)): 
-                                ?>
+                                <?php if($result && mysqli_num_rows($result) > 0): $no = 1; while($row = mysqli_fetch_assoc($result)): ?>
                                 <tr>
                                     <td><?php echo $no++; ?></td>
-                                    <td>
-                                        <strong><?php echo htmlspecialchars($row['nik']); ?></strong><br>
-                                        <?php echo htmlspecialchars($row['nama']); ?>
-                                    </td>
-                                    <td><?php echo htmlspecialchars($row['jenis_kelamin']); ?></td>
+                                    <td><strong><?php echo htmlspecialchars($row['nik']); ?></strong></td>
+                                    <td><?php echo htmlspecialchars($row['nama']); ?></td>
+                                    <td><?php echo htmlspecialchars($row['asal_wilayah']); ?></td>
                                     <td><?php echo date('d-m-Y', strtotime($row['tanggal_datang'])); ?></td>
-                                    <td><?php echo htmlspecialchars($row['alamat_asal']); ?></td>
-                                    <td><?php echo htmlspecialchars($row['keterangan']); ?></td>
-                                    <td>
-                                        <a href="#" class="btn btn-sm btn-delete" onclick="return confirm('Yakin ingin menghapus data pendatang ini?');"><i class="fas fa-trash"></i></a>
-                                    </td>
+                                    <td><?php echo htmlspecialchars($row['keterangan'] ?? '-'); ?></td>
                                 </tr>
-                                <?php 
-                                    endwhile; 
-                                else: 
-                                ?>
-                                <tr>
-                                    <td colspan="7" style="text-align:center; padding: 20px;">Belum ada data pendatang tercatat.</td>
-                                </tr>
+                                <?php endwhile; else: ?>
+                                <tr><td colspan="6" style="text-align: center; padding: 20px;">Belum ada data warga pendatang.</td></tr>
                                 <?php endif; ?>
                             </tbody>
                         </table>
                     </div>
                 </div>
-
             </div>
         </div>
     </div>
 
-    <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            var toggles = document.querySelectorAll('.submenu-toggle');
-            toggles.forEach(function(toggle) {
-                toggle.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    var submenu = this.nextElementSibling;
-                    var icon = this.querySelector('.toggle-icon');
-                    submenu.classList.toggle('show');
-                    icon.classList.toggle('rotate');
-                });
-            });
-        });
-    </script>
+    <!-- MODAL POP-UP NOTIFIKASI -->
+    <div class="modal-notif-overlay" id="modalNotif" style="display: <?php echo (!empty($pesan_sukses) || !empty($pesan_error)) ? 'flex' : 'none'; ?>;">
+        <div class="modal-notif-box">
+            <?php if (!empty($pesan_sukses)): ?>
+                <i class="fas fa-check-circle icon-success"></i>
+                <h3>Berhasil!</h3>
+                <p><?php echo htmlspecialchars($pesan_sukses); ?></p>
+            <?php elseif (!empty($pesan_error)): ?>
+                <i class="fas fa-exclamation-triangle icon-danger"></i>
+                <h3>Perhatian</h3>
+                <p><?php echo htmlspecialchars($pesan_error); ?></p>
+            <?php endif; ?>
+            <button class="btn-modal-close" onclick="document.getElementById('modalNotif').style.display='none'">OK</button>
+        </div>
+    </div>
 </body>
 </html>

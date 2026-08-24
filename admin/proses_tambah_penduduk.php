@@ -7,7 +7,7 @@ if (!isset($_SESSION['username'])) {
 
 include '../backend/koneksi.php';
 
-// Menangkap dan mengamankan data
+// Menangkap dan mengamankan data dari form
 $id_kepala_desa    = mysqli_real_escape_string($koneksi, $_POST['id_kepala_desa']);
 $nik               = mysqli_real_escape_string($koneksi, $_POST['nik']);
 $nama              = mysqli_real_escape_string($koneksi, $_POST['nama']);
@@ -20,52 +20,36 @@ $pendidikan        = mysqli_real_escape_string($koneksi, $_POST['pendidikan']);
 $pekerjaan         = mysqli_real_escape_string($koneksi, $_POST['pekerjaan']);
 $status            = mysqli_real_escape_string($koneksi, $_POST['status']);
 
-// Validasi: Cek apakah NIK sudah terdaftar
+// Validasi 1: Cek apakah NIK sudah terdaftar di database
 $cek_nik = mysqli_query($koneksi, "SELECT nik FROM tabel_penduduk WHERE nik = '$nik'");
-if ($cek_nik !== false && mysqli_num_rows($cek_nik) > 0) {
-    echo "<script>
-            alert('NIK " . addslashes($nik) . " sudah terdaftar di sistem! Silakan gunakan NIK lain.');
-            window.location.href = 'tambah_penduduk.php';
-          </script>";
+if ($cek_nik && mysqli_num_rows($cek_nik) > 0) {
+    $err = urlencode("NIK " . $nik . " sudah terdaftar di sistem! Silakan gunakan NIK lain.");
+    header("location: tambah_penduduk.php?error=$err");
     exit;
 }
 
-// Validasi: Cek format NIK (harus 16 digit)
+// Validasi 2: Cek format NIK (harus 16 digit angka)
 if (!preg_match('/^[0-9]{16}$/', $nik)) {
-    echo "<script>
-            alert('Format NIK salah! NIK harus terdiri dari 16 digit angka.');
-            window.location.href = 'tambah_penduduk.php';
-          </script>";
+    $err = urlencode("Format NIK salah! NIK harus terdiri dari persis 16 digit angka.");
+    header("location: tambah_penduduk.php?error=$err");
     exit;
 }
 
-// Validasi: Cek data kepala desa valid
-$cek_kades = mysqli_query($koneksi, "SELECT id FROM tabel_kepala_desa WHERE id = '$id_kepala_desa'");
-if ($cek_kades !== false && mysqli_num_rows($cek_kades) == 0) {
-    echo "<script>
-            alert('Data Kepala Desa tidak valid! ID: " . addslashes($id_kepala_desa) . " tidak ditemukan.');
-            window.location.href = 'tambah_penduduk.php';
-          </script>";
-    exit;
-}
-
-// Query Insert
+// Query Insert (Kolom ID diserahkan sepenuhnya ke Auto Increment database agar tidak terjadi error duplicate entry)
 $query = "INSERT INTO tabel_penduduk 
           (id_kepala_desa, nik, nama, tanggal_lahir, jenis_kelamin, tempat_lahir, agama, status_perkawinan, pendidikan, pekerjaan, status) 
           VALUES 
           ('$id_kepala_desa', '$nik', '$nama', '$tanggal_lahir', '$jenis_kelamin', '$tempat_lahir', '$agama', '$status_perkawinan', '$pendidikan', '$pekerjaan', '$status')";
 
 if (mysqli_query($koneksi, $query)) {
-    echo "<script>
-            alert('Data Penduduk berhasil ditambahkan!');
-            window.location.href = 'data_penduduk.php';
-          </script>";
+    // Jika berhasil, kembali ke halaman data penduduk
+    header("location: data_penduduk.php");
+    exit;
 } else {
-    // Debug: catat error untuk pengembang (tidak dilihat user akhir)
-    error_log("Gagal insert penduduk: " . mysqli_error($koneksi));
-    echo "<script>
-            alert('Gagal menambahkan data ke database');
-            window.location.href = 'tambah_penduduk.php';
-          </script>";
+    // Jika gagal, kembalikan pesan error database ke halaman tambah penduduk
+    $db_error = mysqli_error($koneksi);
+    $err = urlencode("Gagal menyimpan ke database: " . $db_error);
+    header("location: tambah_penduduk.php?error=$err");
+    exit;
 }
 ?>

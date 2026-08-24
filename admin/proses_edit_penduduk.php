@@ -7,7 +7,6 @@ if (!isset($_SESSION['username'])) {
 
 include '../backend/koneksi.php';
 
-// Menangkap dan mengamankan data
 $id_penduduk       = mysqli_real_escape_string($koneksi, $_POST['id_penduduk']);
 $nik               = mysqli_real_escape_string($koneksi, $_POST['nik']);
 $nama              = mysqli_real_escape_string($koneksi, $_POST['nama']);
@@ -20,29 +19,35 @@ $pendidikan        = mysqli_real_escape_string($koneksi, $_POST['pendidikan']);
 $pekerjaan         = mysqli_real_escape_string($koneksi, $_POST['pekerjaan']);
 $status            = mysqli_real_escape_string($koneksi, $_POST['status']);
 
+// Validasi NIK harus 16 digit angka
+if (!preg_match('/^[0-9]{16}$/', $nik)) {
+    $err = urlencode("Format NIK salah! NIK harus terdiri dari persis 16 digit angka.");
+    header("location: edit_penduduk.php?id_penduduk=$id_penduduk&error=$err");
+    exit;
+}
+
 // Query Update
 $query = "UPDATE tabel_penduduk SET 
-          nik = '$nik', 
-          nama = '$nama', 
-          tanggal_lahir = '$tanggal_lahir', 
-          jenis_kelamin = '$jenis_kelamin', 
-          tempat_lahir = '$tempat_lahir', 
-          agama = '$agama', 
-          status_perkawinan = '$status_perkawinan', 
-          pendidikan = '$pendidikan', 
-          pekerjaan = '$pekerjaan', 
-          status = '$status' 
+            nik = '$nik',
+            nama = '$nama',
+            tempat_lahir = '$tempat_lahir',
+            tanggal_lahir = '$tanggal_lahir',
+            jenis_kelamin = '$jenis_kelamin',
+            agama = '$agama',
+            status_perkawinan = '$status_perkawinan',
+            pendidikan = '$pendidikan',
+            pekerjaan = '$pekerjaan',
+            status = '$status'
           WHERE id_penduduk = '$id_penduduk'";
 
 if (mysqli_query($koneksi, $query)) {
-    echo "<script>
-            alert('Data Penduduk berhasil diperbarui!');
-            window.location.href = 'data_penduduk.php';
-          </script>";
+    $_SESSION['sukses'] = "Data penduduk berhasil diperbarui!";
+    header("location: data_penduduk.php");
+    exit;
 } else {
-    echo "<script>
-            alert('Gagal memperbarui data');
-            window.location.href = 'edit_penduduk.php?id_penduduk=$id_penduduk';
-          </script>";
+    $db_error = mysqli_error($koneksi);
+    $err = urlencode("Gagal memperbarui data: " . $db_error);
+    header("location: edit_penduduk.php?id_penduduk=$id_penduduk&error=$err");
+    exit;
 }
 ?>

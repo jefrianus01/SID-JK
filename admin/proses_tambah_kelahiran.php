@@ -1,32 +1,30 @@
 <?php
 session_start();
-if (!isset($_SESSION['username'])) {
-    header("location: ../index.php");
+if (!isset($_SESSION['username'])) { header("location: ../index.php"); exit; }
+include '../backend/koneksi.php'; 
+
+if (empty($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+    $err = urlencode("Validasi keamanan gagal (Token CSRF tidak valid).");
+    header("location: tambah_kelahiran.php?error=$err");
     exit;
 }
 
-include '../backend/koneksi.php';
+$nama_bayi     = trim($_POST['nama_bayi']);
+$jenis_kelamin = trim($_POST['jenis_kelamin']);
+$tanggal_lahir = $_POST['tanggal_lahir'];
+$nama_ortu     = trim($_POST['nama_ortu']);
 
-// Menangkap dan mengamankan data
-$id_penduduk   = mysqli_real_escape_string($koneksi, $_POST['id_penduduk']);
-$nama          = mysqli_real_escape_string($koneksi, $_POST['nama']);
-$jenis_kelamin = mysqli_real_escape_string($koneksi, $_POST['jenis_kelamin']);
-$tanggal_lahir = mysqli_real_escape_string($koneksi, $_POST['tanggal_lahir']);
-$tempat_lahir  = mysqli_real_escape_string($koneksi, $_POST['tempat_lahir']);
+// Asumsi struktur tabel_kelahiran: nama_bayi, jenis_kelamin, tanggal_lahir, nama_ortu
+$stmt = mysqli_prepare($koneksi, "INSERT INTO tabel_kelahiran (nama_bayi, jenis_kelamin, tanggal_lahir, nama_ortu) VALUES (?, ?, ?, ?)");
+mysqli_stmt_bind_param($stmt, "ssss", $nama_bayi, $jenis_kelamin, $tanggal_lahir, $nama_ortu);
+mysqli_stmt_execute($stmt);
 
-// Query Insert ke tabel_kelahiran
-$query = "INSERT INTO tabel_kelahiran (id_penduduk, nama, jenis_kelamin, tanggal_lahir, tempat_lahir) 
-          VALUES ('$id_penduduk', '$nama', '$jenis_kelamin', '$tanggal_lahir', '$tempat_lahir')";
-
-if (mysqli_query($koneksi, $query)) {
-    echo "<script>
-            alert('Register Kelahiran berhasil dicatat!');
-            window.location.href = 'kelahiran.php';
-          </script>";
+if (mysqli_stmt_affected_rows($stmt) > 0) {
+    $_SESSION['sukses'] = "Data Kelahiran berhasil ditambahkan!";
+    header("location: kelahiran.php");
 } else {
-    echo "<script>
-            alert('Gagal mencatat kelahiran');
-            window.location.href = 'tambah_kelahiran.php';
-          </script>";
+    $err = urlencode("Gagal menyimpan data kelahiran.");
+    header("location: tambah_kelahiran.php?error=$err");
 }
+exit;
 ?>

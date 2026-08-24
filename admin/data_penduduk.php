@@ -6,8 +6,40 @@ if (!isset($_SESSION['username'])) {
     exit;
 }
 
-// Memanggil koneksi. Mundur dari folder admin (../), lalu masuk ke folder backend
+// Memanggil koneksi
 include '../backend/koneksi.php'; 
+
+// Membuat Token CSRF jika belum ada
+if (!isset($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+$pesan_sukses = "";
+$pesan_error = "";
+
+// PROSES HAPUS PENDUDUK
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['id_penduduk'])) {
+    if (isset($_POST['csrf_token']) && $_POST['csrf_token'] === $_SESSION['csrf_token']) {
+        $id_hapus = (int)$_POST['id_penduduk'];
+        
+        $query_hapus = "DELETE FROM tabel_penduduk WHERE id_penduduk = $id_hapus";
+        if (mysqli_query($koneksi, $query_hapus)) {
+            $_SESSION['sukses'] = "Data penduduk berhasil dihapus dari sistem.";
+            header("location: data_penduduk.php");
+            exit;
+        } else {
+            $pesan_error = "Gagal menghapus data: " . mysqli_error($koneksi);
+        }
+    } else {
+        $pesan_error = "Validasi keamanan gagal (CSRF Token tidak valid).";
+    }
+}
+
+// Menangkap pesan sukses dari session
+if (isset($_SESSION['sukses'])) {
+    $pesan_sukses = $_SESSION['sukses'];
+    unset($_SESSION['sukses']);
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -16,13 +48,76 @@ include '../backend/koneksi.php';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Data Penduduk - Admin Desa As Manulea</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Menggunakan CSS utama yang sudah disatukan -->
     <link rel="stylesheet" href="dashboard.css">
+    <style>
+        /* Gaya Pop-up Modal di Tengah Halaman */
+        .modal-notif-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.2s ease;
+        }
+        .modal-notif-box {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            position: relative;
+        }
+        .modal-notif-box i.icon-success {
+            font-size: 50px;
+            color: #198754;
+            margin-bottom: 15px;
+        }
+        .modal-notif-box i.icon-danger {
+            font-size: 50px;
+            color: #dc3545;
+            margin-bottom: 15px;
+        }
+        .modal-notif-box h3 {
+            margin-bottom: 10px;
+            color: #333;
+            font-size: 20px;
+        }
+        .modal-notif-box p {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+        .btn-modal-close {
+            background: #0061f2;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .btn-modal-close:hover {
+            background: #004ecc;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
 </head>
 <body>
     <div class="layout-container">
         
-        <!-- ================= SIDEBAR ================= -->
+        <!-- SIDEBAR -->
         <div class="sidebar">
             <div class="sidebar-header">
                 <div class="logo"><i class="fas fa-landmark"></i></div>
@@ -40,10 +135,9 @@ include '../backend/koneksi.php';
             </ul>
         </div>
 
-        <!-- ================= MAIN CONTENT ================= -->
+        <!-- MAIN CONTENT -->
         <div class="main-content">
             
-            <!-- HEADER -->
             <div class="header">
                 <h1>SISTEM INFORMASI DATA KEPENDUDUKAN</h1>
                 <div class="user-info">
@@ -52,7 +146,6 @@ include '../backend/koneksi.php';
                 </div>
             </div>
 
-            <!-- KONTEN UTAMA -->
             <div class="content-wrapper">
                 
                 <div class="welcome-section" style="padding: 15px 30px; margin-bottom: 20px;">
@@ -70,7 +163,6 @@ include '../backend/koneksi.php';
                     </div>
 
                     <?php
-                    // Query untuk mengambil data penduduk
                     $query = "SELECT * FROM tabel_penduduk ORDER BY nama ASC";
                     $result = mysqli_query($koneksi, $query);
                     ?>
@@ -101,7 +193,6 @@ include '../backend/koneksi.php';
                                         <td><?php echo htmlspecialchars($row['tempat_lahir']) . ', ' . $tgl_lahir; ?></td>
                                         <td>
                                             <?php 
-                                            // Memberikan badge warna berbeda berdasarkan status perkawinan
                                             if ($row['status_perkawinan'] == 'Belum Kawin') {
                                                 echo '<span class="badge" style="background: #e8eaf6; color: #3f51b5;">Belum Kawin</span>';
                                             } else if ($row['status_perkawinan'] == 'Kawin') {
@@ -113,7 +204,12 @@ include '../backend/koneksi.php';
                                         </td>
                                         <td>
                                             <a href="edit_penduduk.php?id_penduduk=<?php echo $row['id_penduduk']; ?>" class="btn btn-sm btn-edit"><i class="fas fa-edit"></i> Edit</a>
-                                            <a href="proses_hapus_penduduk.php?id_penduduk=<?php echo $row['id_penduduk']; ?>" class="btn btn-sm btn-delete" onclick="return confirm('Yakin ingin menghapus data penduduk ini?');"><i class="fas fa-trash"></i> Hapus</a>
+                                            
+                                            <form method="POST" style="display:inline" onsubmit="return confirm('Yakin ingin menghapus data penduduk ini?');">
+                                                <input type="hidden" name="id_penduduk" value="<?php echo $row['id_penduduk']; ?>">
+                                                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                                                <button type="submit" class="btn btn-sm btn-delete"><i class="fas fa-trash"></i></button>
+                                            </form>
                                         </td>
                                     </tr>
                                     <?php endwhile; ?>
@@ -131,5 +227,27 @@ include '../backend/koneksi.php';
             </div>
         </div>
     </div>
+
+    <!-- MODAL POP-UP NOTIFIKASI DI TENGAH HALAMAN -->
+    <div class="modal-notif-overlay" id="modalNotif" style="display: <?php echo (!empty($pesan_sukses) || !empty($pesan_error)) ? 'flex' : 'none'; ?>;">
+        <div class="modal-notif-box">
+            <?php if (!empty($pesan_sukses)): ?>
+                <i class="fas fa-check-circle icon-success"></i>
+                <h3>Berhasil!</h3>
+                <p><?php echo htmlspecialchars($pesan_sukses); ?></p>
+            <?php elseif (!empty($pesan_error)): ?>
+                <i class="fas fa-exclamation-triangle icon-danger"></i>
+                <h3>Terjadi Kesalahan</h3>
+                <p><?php echo htmlspecialchars($pesan_error); ?></p>
+            <?php endif; ?>
+            <button class="btn-modal-close" onclick="closeModalNotif()">OK</button>
+        </div>
+    </div>
+
+    <script>
+        function closeModalNotif() {
+            document.getElementById('modalNotif').style.display = 'none';
+        }
+    </script>
 </body>
 </html>
