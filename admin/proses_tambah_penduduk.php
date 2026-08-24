@@ -22,7 +22,7 @@ $status            = mysqli_real_escape_string($koneksi, $_POST['status']);
 
 // Validasi: Cek apakah NIK sudah terdaftar
 $cek_nik = mysqli_query($koneksi, "SELECT nik FROM tabel_penduduk WHERE nik = '$nik'");
-if (mysqli_num_rows($cek_nik) > 0) {
+if ($cek_nik !== false && mysqli_num_rows($cek_nik) > 0) {
     echo "<script>
             alert('NIK " . addslashes($nik) . " sudah terdaftar di sistem! Silakan gunakan NIK lain.');
             window.location.href = 'tambah_penduduk.php';
@@ -41,7 +41,7 @@ if (!preg_match('/^[0-9]{16}$/', $nik)) {
 
 // Validasi: Cek data kepala desa valid
 $cek_kades = mysqli_query($koneksi, "SELECT id FROM tabel_kepala_desa WHERE id = '$id_kepala_desa'");
-if (mysqli_num_rows($cek_kades) == 0) {
+if ($cek_kades !== false && mysqli_num_rows($cek_kades) == 0) {
     echo "<script>
             alert('Data Kepala Desa tidak valid! ID: " . addslashes($id_kepala_desa) . " tidak ditemukan.');
             window.location.href = 'tambah_penduduk.php';
